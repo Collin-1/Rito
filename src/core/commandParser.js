@@ -244,6 +244,26 @@
         };
       }
 
+      const hoverTargetMatch = rawText.match(
+        /^(?:hover|mouse over|move mouse to)\s+(.+)$/i,
+      );
+      if (hoverTargetMatch) {
+        const hoverIndex = this._extractNumberValue(hoverTargetMatch[1]);
+        if (Number.isInteger(hoverIndex) && hoverIndex >= 1) {
+          return {
+            action: "hoverNumber",
+            index: hoverIndex,
+            rawText,
+          };
+        }
+
+        return {
+          action: "hover",
+          target: hoverTargetMatch[1].trim(),
+          rawText,
+        };
+      }
+
       const clickTargetMatch = rawText.match(
         /^(?:click|press|open|select)\s+(.+)$/i,
       );
