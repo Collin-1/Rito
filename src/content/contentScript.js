@@ -17,6 +17,26 @@
   let commandExecutor;
   let unsubscribeSettings;
 
+  async function requestBackground(type, payload) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type,
+        payload: payload || {},
+      });
+
+      if (!response || !response.ok) {
+        throw new Error(
+          (response && response.error) || "Background request failed",
+        );
+      }
+
+      return response.data;
+    } catch (error) {
+      logger.debug("Background request failed", { type, error });
+      return null;
+    }
+  }
+
   function getSettings() {
     return currentSettings;
   }
@@ -24,7 +44,13 @@
   async function persistRuntimeState(patch) {
     runtimeState = Object.assign({}, runtimeState, patch || {});
     try {
-      await Rito.storage.saveRuntimeState(runtimeState);
+      const updated = await requestBackground(
+        Rito.MESSAGE_TYPES.UPDATE_RUNTIME_STATE,
+        runtimeState,
+      );
+      if (updated) {
+        runtimeState = Object.assign({}, Rito.DEFAULT_RUNTIME_STATE, updated);
+      }
     } catch (error) {
       logger.debug("Unable to persist runtime state", error);
     }
@@ -204,11 +230,26 @@
   }
 
   async function initialize() {
-    try {
-      currentSettings = await Rito.storage.getSettings();
-      runtimeState = await Rito.storage.getRuntimeState();
-    } catch (error) {
-      logger.warn("Falling back to defaults", error);
+    const settingsFromBackground = await requestBackground(
+      Rito.MESSAGE_TYPES.GET_SETTINGS,
+    );
+    const runtimeFromBackground = await requestBackground(
+      Rito.MESSAGE_TYPES.GET_RUNTIME_STATE,
+    );
+
+    if (settingsFromBackground || runtimeFromBackground) {
+      currentSettings = Object.assign(
+        {},
+        Rito.DEFAULT_SETTINGS,
+        settingsFromBackground || {},
+      );
+      runtimeState = Object.assign(
+        {},
+        Rito.DEFAULT_RUNTIME_STATE,
+        runtimeFromBackground || {},
+      );
+    } else {
+      logger.warn("Falling back to defaults (background storage unavailable)");
       currentSettings = Object.assign({}, Rito.DEFAULT_SETTINGS);
       runtimeState = Object.assign({}, Rito.DEFAULT_RUNTIME_STATE);
     }
@@ -233,13 +274,7 @@
     wireSpeechEvents();
     wireMessages();
 
-    unsubscribeSettings = Rito.storage.onSettingsChanged((nextSettings) => {
-      currentSettings = nextSettings;
-      logger.setDebugEnabled(Boolean(currentSettings.debugMode));
-      commandParser.updateSettings(currentSettings);
-      overlayUI.applySettings(currentSettings);
-      speechEngine.updateSettings(currentSettings);
-    });
+    unsubscribeSettings = null;
 
     if (currentSettings.continuousListening || runtimeState.listening) {
       await setListening(true);
