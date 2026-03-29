@@ -177,13 +177,20 @@
 
       const normalized = Rito.fuzzy.normalizeText(transcript);
       const now = Date.now();
-
+      const hotword = Rito.fuzzy.normalizeText(
+        this.settings.hotword || Rito.DEFAULT_WAKE_PHRASE,
+      );
 
       if (!normalized) {
         return { accepted: false, reason: "hotword_required" };
-      if (normalized === hotword) {
+      }
+
+      if (hotword && normalized === hotword) {
         this.armedUntil = now + 10000;
-        this._emit("hotword", { hotword: this.settings.hotword, armed: true });
+        this._emit("hotword", {
+          hotword: this.settings.hotword || Rito.DEFAULT_WAKE_PHRASE,
+          armed: true,
+        });
         return { accepted: false, reason: "armed_only" };
       }
 
