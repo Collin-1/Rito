@@ -118,6 +118,8 @@
         return browserCommand;
       }
 
+      const scrollUnit = this._getScrollUnit();
+
       const scrollMatch = normalized.match(
         /^(?:scroll|go)\s+(down|up)(?:\s+(\d+))?(?:\s*(?:px|pixels))?$/,
       );
@@ -134,12 +136,68 @@
         /^(?:scroll|go)\s+(down|up)\s+(.+?)(?:\s*(?:px|pixels))?$/i,
       );
       if (scrollSpokenMatch) {
-        const spokenAmount = this._extractNumberValue(scrollSpokenMatch[2]);
+        const spokenAmountInput = String(scrollSpokenMatch[2] || "").trim();
+        const spokenAmount = this._extractNumberValue(spokenAmountInput);
         if (Number.isInteger(spokenAmount) && spokenAmount > 0) {
+          const usesScaler = /(?:^|\s)(?:x|times?|page|pages)(?:\s|$)/i.test(
+            spokenAmountInput,
+          );
+
           return {
             action: "scroll",
             direction: String(scrollSpokenMatch[1]).toLowerCase(),
-            amount: spokenAmount,
+            amount: usesScaler ? spokenAmount * scrollUnit : spokenAmount,
+            rawText,
+          };
+        }
+      }
+
+      const scrollScaleWithDirectionMatch = rawText.match(
+        /^scroll\s+(down|up)\s+(.+?)\s*(?:x|times?)$/i,
+      );
+      if (scrollScaleWithDirectionMatch) {
+        const scale = this._extractNumberValue(
+          scrollScaleWithDirectionMatch[2],
+        );
+        if (Number.isInteger(scale) && scale > 0) {
+          return {
+            action: "scroll",
+            direction: String(scrollScaleWithDirectionMatch[1]).toLowerCase(),
+            amount: scale * scrollUnit,
+            rawText,
+          };
+        }
+      }
+
+      const scrollScaleNoDirectionMatch = rawText.match(/^scroll\s+(.+)$/i);
+      if (scrollScaleNoDirectionMatch) {
+        const candidate = scrollScaleNoDirectionMatch[1].trim();
+        if (!/^(?:up|down)\b/i.test(candidate)) {
+          const scale = this._extractNumberValue(candidate);
+          if (Number.isInteger(scale) && scale > 0) {
+            return {
+              action: "scroll",
+              direction: "down",
+              amount: scale * scrollUnit,
+              rawText,
+            };
+          }
+        }
+      }
+
+      const pageCommandMatch = rawText.match(/^page\s*(down|up)(?:\s+(.+))?$/i);
+      if (pageCommandMatch) {
+        const direction = String(pageCommandMatch[1]).toLowerCase();
+        const scaleInput = pageCommandMatch[2]
+          ? pageCommandMatch[2].trim()
+          : "";
+        const scale = scaleInput ? this._extractNumberValue(scaleInput) : 1;
+
+        if (!scaleInput || (Number.isInteger(scale) && scale > 0)) {
+          return {
+            action: "scroll",
+            direction,
+            amount: (scale || 1) * scrollUnit,
             rawText,
           };
         }
@@ -149,7 +207,7 @@
         return {
           action: "scroll",
           direction: "down",
-          amount: Math.round(root.innerHeight * 0.8),
+          amount: scrollUnit,
           rawText,
         };
       }
@@ -158,7 +216,7 @@
         return {
           action: "scroll",
           direction: "up",
-          amount: Math.round(root.innerHeight * 0.8),
+          amount: scrollUnit,
           rawText,
         };
       }
@@ -240,6 +298,26 @@
         return {
           action: "openInNewTab",
           target: "",
+          rawText,
+        };
+      }
+
+      const hoverTargetMatch = rawText.match(
+        /^(?:hover|mouse over|move mouse to)\s+(.+)$/i,
+      );
+      if (hoverTargetMatch) {
+        const hoverIndex = this._extractNumberValue(hoverTargetMatch[1]);
+        if (Number.isInteger(hoverIndex) && hoverIndex >= 1) {
+          return {
+            action: "hoverNumber",
+            index: hoverIndex,
+            rawText,
+          };
+        }
+
+        return {
+          action: "hover",
+          target: hoverTargetMatch[1].trim(),
           rawText,
         };
       }
@@ -713,7 +791,10 @@
         .toLowerCase()
         .replace(/-/g, " ")
         .replace(/,/g, " ")
-        .replace(/\b(?:and|please|tab|tabs|number|item|link)\b/g, " ")
+        .replace(
+          /\b(?:and|please|tab|tabs|number|item|link|time|times|x|page|pages)\b/g,
+          " ",
+        )
         .replace(/\s+/g, " ")
         .trim();
 
@@ -783,6 +864,10 @@
       }
 
       return result;
+    }
+
+    _getScrollUnit() {
+      return Math.max(200, Math.round(root.innerHeight * 0.8));
     }
 
     _parseDictation(rawText, normalized) {
