@@ -4,6 +4,8 @@
 
   const API_URL = "https://api.groq.com/openai/v1/chat/completions";
   const DEFAULT_TIMEOUT_MS = 12000;
+  const SUMMARY_MIN_WORDS = 20;
+  const SUMMARY_MAX_WORDS = 30;
 
   const SUPPORTED_ACTIONS = new Set([
     "OPEN_URL",
@@ -213,11 +215,42 @@
           .slice(0, 7)
       : [];
 
-    if (!summary) {
+    const constrainedSummary = constrainSummaryWordCount(summary, keyPoints);
+
+    if (!constrainedSummary) {
       return null;
     }
 
-    return { summary, keyPoints };
+    return { summary: constrainedSummary, keyPoints };
+  }
+
+  function tokenizeWords(value) {
+    return String(value || "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  function constrainSummaryWordCount(summaryText, keyPoints) {
+    const baseWords = tokenizeWords(summaryText);
+    if (!baseWords.length) {
+      return "";
+    }
+
+    if (baseWords.length >= SUMMARY_MIN_WORDS) {
+      return baseWords.slice(0, SUMMARY_MAX_WORDS).join(" ");
+    }
+
+    const supplementalWords = Array.isArray(keyPoints)
+      ? tokenizeWords(keyPoints.join(" "))
+      : [];
+    const merged = baseWords.concat(supplementalWords);
+
+    if (merged.length >= SUMMARY_MIN_WORDS) {
+      return merged.slice(0, SUMMARY_MAX_WORDS).join(" ");
+    }
+
+    return baseWords.join(" ");
   }
 
   async function callGroq(payload) {
@@ -332,6 +365,7 @@
       '  "summary": "short summary",',
       '  "keyPoints": ["point 1", "point 2", "point 3"]',
       "}",
+      "Write summary as a single sentence between 20 and 30 words.",
       "Keep key points concise and actionable.",
       "Do not include markdown.",
     ].join("\n");

@@ -215,7 +215,7 @@
       const scrollUnit = this._getScrollUnit();
 
       const scrollMatch = normalized.match(
-        /^(?:scroll|go)\s+(down|up)(?:\s+(\d+))?(?:\s*(?:px|pixels))?$/,
+        /^scroll\s+(down|up)(?:\s+(\d+))?(?:\s*(?:px|pixels))?$/,
       );
       if (scrollMatch) {
         return {
@@ -227,7 +227,7 @@
       }
 
       const scrollSpokenMatch = rawText.match(
-        /^(?:scroll|go)\s+(down|up)\s+(.+?)(?:\s*(?:px|pixels))?$/i,
+        /^scroll\s+(down|up)\s+(.+?)(?:\s*(?:px|pixels))?$/i,
       );
       if (scrollSpokenMatch) {
         const spokenAmountInput = String(scrollSpokenMatch[2] || "").trim();
@@ -707,7 +707,7 @@
     _inferFallbackIntent(rawText, normalized) {
       const tokens = new Set(normalized.split(" ").filter(Boolean));
 
-      if (tokens.has("scroll") || tokens.has("down") || tokens.has("up")) {
+      if (tokens.has("scroll") && (tokens.has("down") || tokens.has("up"))) {
         if (tokens.has("up")) {
           return {
             action: "scroll",

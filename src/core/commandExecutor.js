@@ -134,7 +134,7 @@
           return this._deleteLastWord();
 
         case "summarizePage":
-          return this._summarizePage(command.context);
+          return this._summarizePage();
         case "deleteAllWords":
           return this._deleteAllWords();
 
@@ -351,8 +351,8 @@
       return { ok: true };
     }
 
-    async _summarizePage(context) {
-      const pageContext = context || this._buildPageContext();
+    async _summarizePage() {
+      const pageContext = this._buildPageContext();
       try {
         const response = await chrome.runtime.sendMessage({
           type: Rito.MESSAGE_TYPES.AI_SUMMARIZE_PAGE,
@@ -370,18 +370,11 @@
 
         const summary = response.data || {};
         const summaryText = String(summary.summary || "").trim();
-        const keyPoints = Array.isArray(summary.keyPoints)
-          ? summary.keyPoints
-              .map((point) => String(point).trim())
-              .filter(Boolean)
-          : [];
-
-        const combined = keyPoints.length
-          ? `${summaryText} Key points: ${keyPoints.slice(0, 2).join("; ")}`
-          : summaryText;
 
         const overlayText =
-          combined.length > 250 ? `${combined.slice(0, 247)}...` : combined;
+          summaryText.length > 250
+            ? `${summaryText.slice(0, 247)}...`
+            : summaryText;
 
         this.overlayUI.showFeedback(
           overlayText || "Summary generated",

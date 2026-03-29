@@ -203,8 +203,8 @@
     if (action === "MULTI_STEP") {
       const steps = Array.isArray(intent.steps)
         ? intent.steps
-          .map((step) => mapAiStepToCommand(step, pageContext))
-          .filter(Boolean)
+            .map((step) => mapAiStepToCommand(step, pageContext))
+            .filter(Boolean)
         : [];
 
       if (!steps.length) {
@@ -251,7 +251,7 @@
     );
     if (orbInjector) {
       orbInjector.setStateFromOrb(
-        nextMode === Rito.COMMAND_MODES.DICTATION ? "speaking" : "listening"
+        nextMode === Rito.COMMAND_MODES.DICTATION ? "speaking" : "listening",
       );
     }
     await persistRuntimeState({ mode: nextMode });
@@ -269,25 +269,11 @@
   async function handleTranscript(text, confidence) {
     let command = commandParser.parse(text, { mode: runtimeState.mode });
 
-    if (
-      currentSettings.aiIntentEnabled &&
-      (!command || command.action === "unknown")
-    ) {
-      const pageContext = getPageContext(2000);
-      const aiIntent = await requestBackground(
-        Rito.MESSAGE_TYPES.AI_PARSE_INTENT,
-        {
-          transcript: text,
-          context: pageContext,
-        },
-      );
-
-      if (aiIntent) {
-        const aiCommand = mapAiIntentToCommand(aiIntent, pageContext);
-        if (aiCommand) {
-          command = aiCommand;
-        }
-      }
+    if (command && command.action === "summarizePage") {
+      // Summary requests must always use the active page content.
+      command = Object.assign({}, command, {
+        context: getPageContext(2000),
+      });
     }
 
     if (!command || command.action === "unknown") {
@@ -337,7 +323,7 @@
           String(currentSettings.commandActivationMode || "always") ===
           String(
             (Rito.ACTIVATION_MODES && Rito.ACTIVATION_MODES.WAKE_PHRASE) ||
-            "wake_phrase",
+              "wake_phrase",
           );
 
         if (wakeMode && now - lastWakeHintAt > 6000) {
@@ -377,20 +363,14 @@
       runtimeState.listening = listening;
       persistRuntimeState({ listening });
       if (orbInjector) {
-        orbInjector.setStateFromOrb(
-          listening ? "listening" : "idle"
-        );
+        orbInjector.setStateFromOrb(listening ? "listening" : "idle");
       }
     });
 
     speechEngine.addEventListener("audio-level", (event) => {
       const level = event.detail.level || 0;
       if (level > 10) {
-        overlayUI.showFeedback(
-          `Microphone active (${level}%)`,
-          "info",
-          500,
-        );
+        overlayUI.showFeedback(`Microphone active (${level}%)`, "info", 500);
       }
     });
   }
@@ -537,10 +517,17 @@
         }
       } else {
         // Tab is now visible - resume microphone if it was active
-        if (wasListeningBeforeHidden && speechEngine && !runtimeState.listening) {
+        if (
+          wasListeningBeforeHidden &&
+          speechEngine &&
+          !runtimeState.listening
+        ) {
           logger.debug("Tab visible again, resuming microphone");
           setListening(true).catch((error) => {
-            logger.error("Failed to resume listening when tab became visible", error);
+            logger.error(
+              "Failed to resume listening when tab became visible",
+              error,
+            );
           });
         }
       }
