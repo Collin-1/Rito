@@ -120,7 +120,9 @@
       merged.commandActivationMode === "wake_phrase"
         ? "wake_phrase"
         : defaults.commandActivationMode;
-    hotwordEl.value = merged.hotword || "";
+    if (hotwordEl) {
+      hotwordEl.value = merged.hotword || "";
+    }
     highContrastEl.checked = Boolean(merged.highContrast);
     debugModeEl.checked = Boolean(merged.debugMode);
     commandCooldownMsEl.value = String(merged.commandCooldownMs);
@@ -206,7 +208,6 @@
       microphoneSensitivity: Number(sensitivityEl.value),
       continuousListening: continuousListeningEl.checked,
       commandActivationMode: commandActivationModeEl.value,
-      hotword: hotwordEl.value.trim(),
       highContrast: highContrastEl.checked,
       debugMode: debugModeEl.checked,
       commandCooldownMs: Number(commandCooldownMsEl.value),
@@ -216,6 +217,10 @@
       aiCacheTtlMs: Number(aiCacheTtlMsEl.value),
       customCommands: readCustomCommands(),
     };
+
+    if (hotwordEl) {
+      payload.hotword = hotwordEl.value.trim();
+    }
 
     const current = await chrome.storage.sync.get(STORAGE_KEY);
     const merged = Object.assign(
