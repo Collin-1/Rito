@@ -3,7 +3,7 @@
   const Rito = (root.Rito = root.Rito || {});
 
   Rito.DEFAULT_SETTINGS = {
-    microphoneSensitivity: 0.4,
+    microphoneSensitivity: 0.25,
     commandLanguage: "en-US",
     continuousListening: true,
     hotword: "",
@@ -48,8 +48,11 @@
     "[role='button']",
     "[role='link']",
     "[role='menuitem']",
+    "[role='tab']",
+    "[aria-expanded]",
     "[tabindex]:not([tabindex='-1'])",
     "[onclick]",
+    "[data-toggle='collapse']",
     "[contenteditable='true']",
   ];
 
