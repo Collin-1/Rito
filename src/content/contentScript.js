@@ -203,8 +203,8 @@
     if (action === "MULTI_STEP") {
       const steps = Array.isArray(intent.steps)
         ? intent.steps
-            .map((step) => mapAiStepToCommand(step, pageContext))
-            .filter(Boolean)
+          .map((step) => mapAiStepToCommand(step, pageContext))
+          .filter(Boolean)
         : [];
 
       if (!steps.length) {
@@ -337,7 +337,7 @@
           String(currentSettings.commandActivationMode || "always") ===
           String(
             (Rito.ACTIVATION_MODES && Rito.ACTIVATION_MODES.WAKE_PHRASE) ||
-              "wake_phrase",
+            "wake_phrase",
           );
 
         if (wakeMode && now - lastWakeHintAt > 6000) {
@@ -519,6 +519,32 @@
     if (currentSettings.continuousListening || runtimeState.listening) {
       await setListening(true);
     }
+
+    // Setup tab focus listener after initialization completes
+    let wasListeningBeforeHidden = false;
+
+    // Use visibilitychange event for reliable tab focus detection
+    root.document.addEventListener("visibilitychange", () => {
+      if (root.document.hidden) {
+        // Tab is now hidden - pause microphone
+        if (runtimeState.listening && speechEngine) {
+          logger.debug("Tab hidden, stopping microphone completely");
+          wasListeningBeforeHidden = true;
+          speechEngine.stop();
+          runtimeState.listening = false;
+        } else {
+          wasListeningBeforeHidden = false;
+        }
+      } else {
+        // Tab is now visible - resume microphone if it was active
+        if (wasListeningBeforeHidden && speechEngine && !runtimeState.listening) {
+          logger.debug("Tab visible again, resuming microphone");
+          setListening(true).catch((error) => {
+            logger.error("Failed to resume listening when tab became visible", error);
+          });
+        }
+      }
+    });
   }
 
   initialize().catch((error) => {

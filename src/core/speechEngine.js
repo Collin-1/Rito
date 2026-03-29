@@ -88,6 +88,26 @@
       }
     }
 
+    pause() {
+      // Temporary pause without stopping resources (for background tabs)
+      if (this.recognition && this.isListening) {
+        try {
+          this.recognition.stop();
+          this.logger.debug("Speech recognition paused");
+        } catch (error) {
+          this.logger.debug("Error pausing recognition", error);
+        }
+      }
+    }
+
+    resume() {
+      // Resume after pause if shouldRun is still true
+      if (this.shouldRun && !this.isListening) {
+        this._beginRecognition();
+        this.logger.debug("Speech recognition resumed");
+      }
+    }
+
     _getRecognitionCtor() {
       return root.SpeechRecognition || root.webkitSpeechRecognition || null;
     }
@@ -441,7 +461,7 @@
           );
           const confidenceBoost =
             String(this.settings.commandActivationMode) ===
-            String(Rito.ACTIVATION_MODES.WAKE_PHRASE)
+              String(Rito.ACTIVATION_MODES.WAKE_PHRASE)
               ? 0.14
               : 0.1;
           const minConfidence = Math.max(0, baseSensitivity - confidenceBoost);
@@ -494,27 +514,43 @@
     }
 
     _handleError(event) {
-      const errorCode = event && event.error ? event.error : "unknown";
-      this.logger.warn("Speech recognition error", {
-        errorCode,
-        message: `Speech engine error: ${errorCode}`,
-      });
+      const errorCode = event && event.error ? String(event.error) : "unknown";
+
+      // Map error codes to user-friendly descriptions
+      const errorDescriptions = {
+        "no-speech": "No speech detected - listening paused",
+        "audio-capture": "Microphone not working - check your audio settings",
+        "network": "Network error - check your internet connection",
+        "network-timeout": "Network timeout - please try again",
+        "not-allowed": "Microphone permission denied - enable microphone access",
+        "service-not-allowed": "Speech recognition service not available in your region",
+        "bad-grammar": "Grammar format error",
+        "aborted": "Speech recognition was aborted",
+      };
+
+      const description = errorDescriptions[errorCode] || `Speech recognition error: ${errorCode}`;
+
+      // Log no-speech as debug to reduce console noise
+      if (errorCode === "no-speech") {
+        this.logger.debug(`Speech recognition: ${description}`);
+      } else {
+        this.logger.warn(`Speech recognition error: ${description}`);
+      }
+
       this._emit("error", {
         code: errorCode,
-        message: `Speech engine error: ${errorCode}`,
+        message: description,
       });
 
+      // Fatal errors - stop attempting restart
       if (errorCode === "not-allowed" || errorCode === "service-not-allowed") {
-        this.logger.error("Microphone permission not granted");
+        this.logger.error("Fatal error - microphone access not available");
         this.shouldRun = false;
         return;
       }
 
-      if (errorCode === "audio-capture") {
-        this.logger.warn("No audio input detected on device");
-      }
-
-      if (this.shouldRun) {
+      // Recoverable errors - schedule restart
+      if (this.shouldRun && errorCode !== "aborted") {
         this._scheduleRestart("onerror");
       }
     }
