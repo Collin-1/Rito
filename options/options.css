@@ -16,11 +16,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(
-      120% 120% at 0% 0%,
+    radial-gradient(120% 120% at 0% 0%,
       rgba(255, 255, 255, 0.9),
-      transparent 55%
-    ),
+      transparent 55%),
     linear-gradient(150deg, #eff7f4 0%, #f7fbfa 40%, #eaf2f7 100%);
   color: var(--ink);
   font-family: "Segoe UI Variable", "Aptos", "Trebuchet MS", sans-serif;

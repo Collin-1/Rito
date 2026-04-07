@@ -143,15 +143,44 @@
             from { opacity: 0; transform: scale(0.8); }
             to { opacity: 1; transform: scale(1); }
           }
+
+          .summary {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            max-width: min(600px, calc(100vw - 32px));
+            max-height: 40vh;
+            padding: 20px 24px;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 500;
+            line-height: 1.5;
+            background: var(--rito-bg);
+            color: var(--rito-fg);
+            border: 2px solid var(--rito-accent);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transition: opacity 200ms ease;
+            pointer-events: auto;
+            overflow-y: auto;
+            z-index: 2147483646;
+          }
+
+          .summary.visible {
+            opacity: 1;
+          }
         </style>
         <div id="host">
           <div class="layer" id="labels"></div>
           <div class="feedback" id="feedback" aria-live="polite"></div>
+          <div class="summary" id="summary" aria-live="polite" role="region" aria-label="Page summary"></div>
           <div class="transcript" id="transcript" aria-live="polite"></div>
         </div>
       `;
 
       this.feedbackEl = this.shadow.getElementById("feedback");
+      this.summaryEl = this.shadow.getElementById("summary");
       this.transcriptEl = this.shadow.getElementById("transcript");
       this.labelsLayer = this.shadow.getElementById("labels");
       this.shadow.getElementById("host").dataset.contrast = this.settings
@@ -167,11 +196,15 @@
       );
       root.addEventListener("scroll", this.reposition, true);
       root.addEventListener("resize", this.reposition, true);
+
+      this.feedbackShowTime = 0;
+      this.feedbackIsSummary = false;
     }
 
     showFeedback(message, type, timeoutMs) {
       const kind = type || "info";
       const timeout = Number(timeoutMs || 1700);
+
       this.feedbackEl.textContent = String(message || "");
       this.feedbackEl.className = `feedback ${kind} visible`;
 
@@ -179,6 +212,23 @@
       this.feedbackTimer = setTimeout(() => {
         this.feedbackEl.className = `feedback ${kind}`;
       }, timeout);
+    }
+
+    showSummary(message, timeoutMs) {
+      const timeout = Number(timeoutMs || 13000);
+      this.summaryEl.textContent = String(message || "");
+      this.summaryEl.className = "summary visible";
+      this.summaryShowTime = Date.now();
+
+      clearTimeout(this.summaryTimer);
+      this.summaryTimer = setTimeout(() => {
+        this.summaryEl.className = "summary";
+      }, timeout);
+    }
+
+    isSummaryActive() {
+      const timeSinceSummaryShown = Date.now() - this.summaryShowTime;
+      return timeSinceSummaryShown < 13000;
     }
 
     showTranscript(text, interim) {

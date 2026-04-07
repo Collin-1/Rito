@@ -248,8 +248,8 @@
         const summaryText = String(summary.summary || "").trim();
         const keyPoints = Array.isArray(summary.keyPoints)
           ? summary.keyPoints
-              .map((point) => String(point).trim())
-              .filter(Boolean)
+            .map((point) => String(point).trim())
+            .filter(Boolean)
           : [];
 
         const combined = keyPoints.length
@@ -259,10 +259,9 @@
         const overlayText =
           combined.length > 250 ? `${combined.slice(0, 247)}...` : combined;
 
-        this.overlayUI.showFeedback(
+        this.overlayUI.showSummary(
           overlayText || "Summary generated",
-          "info",
-          5200,
+          13000,
         );
 
         return { ok: true, data: summary };
@@ -289,7 +288,7 @@
           (root.document &&
             root.document.body &&
             root.document.body.innerText) ||
-            "",
+          "",
         ).slice(0, 2000),
       };
     }
